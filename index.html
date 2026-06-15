@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+
+<!-- PWA / Home Screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="8-cups">
+<meta name="application-name" content="8-cups">
+<meta name="theme-color" content="#3AABF0">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- Inline manifest via data URI so no extra file is needed -->
+<link rel="manifest" href="data:application/manifest+json,{%22name%22:%228-cups%22,%22short_name%22:%228-cups%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%233AABF0%22,%22theme_color%22:%22%233AABF0%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20512%20512'%3E%3Crect%20width%3D'512'%20height%3D'512'%20rx%3D'112'%20fill%3D'%233AABF0'%2F%3E%3Ctext%20x%3D'50%25'%20y%3D'54%25'%20dominant-baseline%3D'middle'%20text-anchor%3D'middle'%20font-size%3D'260'%3E%F0%9F%92%A7%3C%2Ftext%3E%3C%2Fsvg%3E%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22,%22purpose%22:%22any%20maskable%22}]}">
+
+<!-- Apple touch icon — inline SVG as data URI -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%233AABF0'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='280'>💧</text></svg>">
+
+<title>8-cups</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --blue: #3AABF0;
+  --blue2: #5BC8FF;
+  --blue3: #1A7DC4;
+  --blue-dark: #1565A8;
+  --cyan: #00D4FF;
+  --green: #22C55E;
+  --red: #EF4444;
+  --orange: #F97316;
+  --purple: #A855F7;
+  --bg: #FFFFFF;
+  --text: #0F172A;
+  --gray: #94A3B8;
+  --gray-light: #F1F5F9;
+  --panel: #F8FAFC;
+  --border: #E2E8F0;
+  --font: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Bebas Neue', 'Space Grotesk', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+select, input { touch-action: auto; }
+html, body { height: 100%; overflow: hidden; font-family: var(--font); background: var(--bg); color: var(--text); }
+#app { position: relative; width: 100vw; height: 100vh; }
+
+/* ── SETTINGS PANEL ── */
+#overlay { position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(4px); z-index: 90; opacity: 0; pointer-events: none; transition: opacity .3s; }
+#overlay.on { opacity: 1; pointer-events: all; }
+
+#settings {
+  position: fixed; left: -100%; top: 0; width: 84%; max-width: 370px; height: 100%;
+  background: #FFFFFF; z-index: 100; transition: left .38s cubic-bezier(.25,.46,.45,.94);
+  overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 28px 20px 48px;
+  box-shadow: 4px 0 40px rgba(0,0,0,.12);
+}
+#settings.on { left: 0; }
+
+.set-lbl { font-size: 10px; color: var(--gray); letter-spacing: 2px; margin-bottom: 22px; text-transform: uppercase; font-weight: 600; }
+.set-sec { margin-bottom: 22px; }
+.set-sec h3 { font-size: 24px; font-weight: 800; margin-bottom: 12px; letter-spacing: -.3px; }
+
+.set-row { display: flex; gap: 10px; }
+.set-row input, .set-row select {
+  padding: 13px 14px; border: 2px solid var(--border); border-radius: 16px;
+  font-size: 16px; background: var(--panel); flex: 1; font-family: var(--font);
+  color: var(--text); transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none; appearance: none; min-height: 50px;
+}
+.set-row select { flex: 0 0 86px; text-align: center; cursor: pointer; }
+.set-row input:focus, .set-row select:focus {
+  outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(58,171,240,.15);
+}
+
+.btn-save {
+  width: 100%; padding: 14px; background: var(--blue); color: #fff; border: none;
+  border-radius: 16px; font-size: 15px; font-weight: 700; cursor: pointer;
+  margin-top: 10px; font-family: var(--font); letter-spacing: .3px;
+  transition: transform .12s, box-shadow .2s, background .2s;
+  box-shadow: 0 4px 14px rgba(58,171,240,.4);
+}
+.btn-save:active { transform: scale(.97); box-shadow: none; }
+
+.avg-box {
+  text-align: center; padding: 16px 0; border-top: 1.5px solid var(--border);
+  border-bottom: 1.5px solid var(--border); margin: 6px 0 16px;
+}
+.avg-box p { font-size: 12px; color: var(--gray); margin-bottom: 8px; font-weight: 500; }
+.avg-val {
+  font-size: 52px; font-weight: 900; color: var(--red);
+  display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1;
+  font-family: var(--font-display); letter-spacing: 1px;
+}
+.avg-val.good { color: var(--green); }
+.avg-unit { font-size: 28px; font-weight: 700; }
+.trend { font-size: 28px; transition: color .3s; }
+.avg-sub { font-size: 12px; color: var(--gray); margin-top: 8px; font-weight: 600; }
+
+.health-box { text-align: center; padding: 14px 0 6px; border-top: 1.5px solid var(--border); }
+.health-box p { font-size: 12px; color: var(--gray); margin-bottom: 8px; font-weight: 500; }
+.health-status { font-size: 24px; font-weight: 900; letter-spacing: 2px; font-family: var(--font-display); }
+.health-status.improving { color: var(--green); }
+.health-status.stable { color: var(--orange); }
+.health-status.declining { color: var(--red); }
+
+.btn-survey {
+  width: 100%; padding: 18px; background: var(--blue); color: #fff; border: none;
+  border-radius: 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1.5px; margin-top: 14px; font-family: var(--font);
+  transition: transform .12s, box-shadow .2s; box-shadow: 0 4px 14px rgba(58,171,240,.4);
+}
+.btn-results {
+  width: 100%; padding: 18px; background: var(--green); color: #fff; border: none;
+  border-radius: 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1.5px; margin-top: 10px; font-family: var(--font);
+  transition: transform .12s, box-shadow .2s; box-shadow: 0 4px 14px rgba(34,197,94,.35);
+}
+.btn-survey:active, .btn-results:active { transform: scale(.97); box-shadow: none; }
+
+/* ── MAIN VIEW ── */
+#main {
+  width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; padding: 0 22px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+
+.header {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 0 6px; flex-shrink: 0; position: relative;
+}
+.logo { font-size: 22px; font-weight: 800; user-select: none; letter-spacing: -.5px; position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none; }
+.logo span { color: var(--blue); }
+
+.menu-btn {
+  display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  width: 42px; height: 42px; background: var(--gray-light); border: 2px solid var(--border);
+  border-radius: 14px; cursor: pointer; padding: 10px 9px;
+  transition: background .2s, transform .12s, border-color .2s;
+  flex-shrink: 0;
+}
+.menu-btn:active { transform: scale(.93); background: var(--border); }
+.menu-btn span {
+  display: block; height: 2px; background: var(--text); border-radius: 2px;
+  transition: transform .25s, opacity .2s, width .2s;
+  transform-origin: center;
+}
+.menu-btn span:nth-child(2) { width: 70%; }
+.menu-btn.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-btn.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.menu-btn.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.streak-badge {
+  display: flex; align-items: center; gap: 7px; background: #F0F9FF;
+  border: 2px solid #BAE6FD; border-radius: 28px; padding: 8px 16px;
+  font-size: 18px; font-weight: 800; cursor: pointer; transition: transform .12s;
+  color: var(--blue-dark);
+}
+.streak-badge:active { transform: scale(.95); }
+.streak-badge .drop-icon { font-size: 20px; filter: drop-shadow(0 2px 4px rgba(58,171,240,.5)); }
+
+.you-drank { font-size: 20px; font-weight: 700; margin-bottom: 4px; flex-shrink: 0; letter-spacing: -.2px; }
+
+/* ── BOTTLE ── */
+.bottle-wrap {
+  position: relative; flex-shrink: 0; display: flex;
+  align-items: center; justify-content: center; margin: 2px 0;
+}
+.bottle-svg {
+  width: 170px; height: 295px;
+  filter: drop-shadow(0 8px 24px rgba(58,171,240,.3));
+  transition: filter .4s;
+}
+.bottle-svg.full { filter: drop-shadow(0 8px 36px rgba(58,171,240,.65)); }
+
+.bottle-nums {
+  position: absolute; bottom: 26%; left: 50%; transform: translateX(-50%);
+  text-align: center; pointer-events: none; user-select: none;
+}
+.oz-num {
+  font-size: 60px; font-weight: 900; color: var(--blue-dark); line-height: 1;
+  font-family: var(--font-display); letter-spacing: 1px; transition: transform .2s;
+}
+.oz-unit {
+  font-size: 22px; font-weight: 800; color: var(--blue-dark);
+  letter-spacing: 5px; opacity: .85; font-family: var(--font-display);
+}
+.bottle-remaining {
+  position: absolute; top: 12%; left: 50%; transform: translateX(-50%);
+  font-size: 11px; font-weight: 700; color: rgba(21,101,168,.7);
+  white-space: nowrap; pointer-events: none; background: rgba(255,255,255,.85);
+  padding: 3px 9px; border-radius: 10px; backdrop-filter: blur(4px);
+}
+
+/* ── PROGRESS ── */
+.prog-wrap { text-align: center; margin-bottom: 8px; flex-shrink: 0; }
+.prog-wrap h2 { font-size: 20px; font-weight: 700; margin-bottom: 3px; letter-spacing: -.2px; }
+.motiv { font-size: 14px; font-weight: 700; margin-bottom: 3px; color: var(--text); }
+.bottle-hint { font-size: 12px; color: var(--gray); font-weight: 500; }
+.bottle-hint a { color: var(--blue); text-decoration: none; font-weight: 700; }
+
+.pbar-wrap {
+  width: 100%; max-width: 420px; height: 10px; background: var(--border);
+  border-radius: 5px; overflow: hidden; margin: 10px 0 5px; flex-shrink: 0;
+}
+.pbar {
+  height: 100%; background: linear-gradient(90deg, var(--blue), var(--cyan));
+  border-radius: 5px; transition: width .7s cubic-bezier(.25,.46,.45,.94); width: 0%;
+  position: relative; overflow: hidden;
+}
+.pbar::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+  animation: shimmer 2.2s infinite;
+}
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+.refill-alert {
+  display: none; background: linear-gradient(135deg, var(--orange), #EF4444);
+  color: #fff; padding: 10px 20px; border-radius: 14px; font-size: 13px;
+  font-weight: 700; text-align: center; margin-bottom: 8px;
+  animation: pulse 2s infinite; flex-shrink: 0; letter-spacing: .3px;
+  box-shadow: 0 4px 14px rgba(249,115,22,.35);
+}
+.refill-alert.on { display: block; }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+
+/* ── QUICK LOG BUTTON ── */
+.quick-log-wrap { width: 100%; max-width: 420px; flex-shrink: 0; margin-bottom: 14px; }
+.quick-log-label { font-size: 11px; color: var(--gray); margin-bottom: 8px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+
+.btn-quick-log {
+  width: 100%; padding: 18px 20px;
+  background: linear-gradient(135deg, var(--blue), var(--blue3));
+  color: #fff; border: none; border-radius: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; font-family: var(--font);
+  transition: transform .15s, box-shadow .2s;
+  box-shadow: 0 6px 22px rgba(58,171,240,.45);
+  position: relative; overflow: hidden;
+}
+.btn-quick-log:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(58,171,240,.3); }
+
+.bql-left { display: flex; align-items: center; gap: 12px; }
+.bql-icon { font-size: 26px; line-height: 1; }
+.bql-text { text-align: left; }
+.bql-title { font-size: 16px; font-weight: 800; letter-spacing: -.2px; line-height: 1.1; }
+.bql-sub { font-size: 12px; font-weight: 500; opacity: .8; margin-top: 2px; }
+
+.bql-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.bql-amt { font-size: 22px; font-weight: 900; line-height: 1; font-family: var(--font-display); letter-spacing: .5px; }
+.bql-unit { font-size: 11px; font-weight: 600; opacity: .8; letter-spacing: 1px; }
+
+/* Ripple */
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
+.ripple-el {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,.3);
+  width: 60px; height: 60px;
+  margin-top: -30px; margin-left: -30px;
+  animation: ripple .6s linear forwards;
+  pointer-events: none;
+}
+
+/* Divider between quick log and detailed form */
+.log-divider {
+  width: 100%; max-width: 420px; display: flex; align-items: center;
+  gap: 12px; flex-shrink: 0; margin-bottom: 10px;
+}
+.log-divider::before, .log-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.log-divider span { font-size: 11px; color: var(--gray); font-weight: 600; letter-spacing: .5px; white-space: nowrap; }
+
+/* ── LOG FORM ── */
+.log-form { width: 100%; max-width: 420px; flex-shrink: 0; }
+.log-lbl { font-size: 11px; color: var(--gray); margin-bottom: 8px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+
+.log-row1 { display: flex; gap: 10px; align-items: stretch; }
+.log-row1 input {
+  flex: 1; padding: 14px; border: 2px solid var(--border); border-radius: 16px;
+  font-size: 16px; text-align: center; background: var(--panel); font-family: var(--font);
+  color: var(--text); font-weight: 600; transition: border-color .2s, box-shadow .2s;
+  min-height: 50px;
+}
+.log-row1 input::placeholder { color: #CBD5E1; font-weight: 400; }
+.log-row1 select {
+  padding: 12px 10px; border: 2px solid var(--border); border-radius: 16px;
+  font-size: 16px; background: var(--panel); font-family: var(--font);
+  font-weight: 700; color: var(--text); transition: border-color .2s;
+  -webkit-appearance: none; appearance: none;
+  min-height: 50px; cursor: pointer; min-width: 90px;
+  text-align: center;
+}
+.log-row1 input:focus, .log-row1 select:focus, .log-row2 select:focus {
+  outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(58,171,240,.15);
+}
+
+.log-row2 { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+.log-row2 select {
+  flex: 1; padding: 13px 14px; border: 2px solid var(--border); border-radius: 16px;
+  font-size: 16px; background: var(--panel); font-family: var(--font);
+  font-weight: 600; color: var(--text); transition: border-color .2s;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394A3B8' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+  padding-right: 36px; min-height: 50px; cursor: pointer;
+}
+.at-lbl { font-size: 13px; color: var(--gray); padding: 0 2px; flex-shrink: 0; font-weight: 600; }
+
+.btn-add {
+  padding: 13px 22px; background: var(--blue); color: #fff; border: none;
+  border-radius: 16px; font-size: 15px; font-weight: 700; cursor: pointer;
+  white-space: nowrap; font-family: var(--font); letter-spacing: .3px;
+  transition: background .2s, transform .12s, box-shadow .2s;
+  box-shadow: 0 4px 14px rgba(58,171,240,.4);
+}
+.btn-add:active { transform: scale(.95); background: var(--blue3); box-shadow: none; }
+
+/* ── LOG ENTRIES ── */
+.entries { width: 100%; max-width: 420px; margin-top: 12px; }
+.entry {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: #F0F9FF; border-radius: 14px;
+  margin-bottom: 7px; border: 1.5px solid #BAE6FD;
+  animation: slideIn .3s cubic-bezier(.25,.46,.45,.94);
+}
+@keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+.entry-info { font-size: 14px; font-weight: 700; color: var(--blue-dark); }
+.entry-time { font-size: 11px; color: var(--gray); margin-top: 2px; font-weight: 500; }
+.entry-del {
+  background: rgba(148,163,184,.12); border: none; color: var(--gray);
+  cursor: pointer; font-size: 14px; padding: 6px 8px; border-radius: 10px;
+  transition: background .2s, color .2s;
+}
+.entry-del:active { background: #FEE2E2; color: var(--red); }
+
+/* ── SURVEY MODAL ── */
+#survey {
+  position: fixed; inset: 0; background: #fff; z-index: 200;
+  display: none; flex-direction: column; overflow-y: auto;
+  -webkit-overflow-scrolling: touch; padding: 28px 22px 48px;
+}
+#survey.on { display: flex; animation: fadeUp .3s cubic-bezier(.25,.46,.45,.94); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+
+.modal-hdr { display: flex; align-items: center; margin-bottom: 26px; }
+.modal-hdr h2 { font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+.btn-x {
+  background: var(--gray-light); border: none; font-size: 18px; cursor: pointer;
+  color: var(--gray); margin-left: auto; padding: 6px 11px; border-radius: 12px;
+  transition: background .2s; font-weight: 700;
+}
+.btn-x:active { background: var(--border); }
+
+.q { margin-bottom: 28px; }
+.q label { display: block; font-size: 15px; font-weight: 700; margin-bottom: 14px; line-height: 1.45; }
+
+.emoji-row { display: flex; gap: 8px; }
+.emo {
+  flex: 1; padding: 11px 4px; border: 2px solid var(--border);
+  border-radius: 16px; background: var(--panel); cursor: pointer;
+  text-align: center; font-size: 22px; transition: all .2s; font-family: var(--font);
+}
+.emo span { display: block; font-size: 9px; font-weight: 700; color: var(--gray); margin-top: 3px; }
+.emo.sel { border-color: var(--blue); background: #EFF8FF; box-shadow: 0 0 0 3px rgba(58,171,240,.2); transform: translateY(-2px); }
+
+.yn-row { display: flex; gap: 10px; }
+.yn {
+  flex: 1; padding: 15px; border: 2px solid var(--border); border-radius: 16px;
+  background: var(--panel); cursor: pointer; text-align: center;
+  font-size: 14px; font-weight: 700; transition: all .2s; color: var(--text); font-family: var(--font);
+}
+.yn.sel { border-color: var(--blue); background: #EFF8FF; color: var(--blue); transform: translateY(-2px); box-shadow: 0 0 0 3px rgba(58,171,240,.2); }
+
+.slider-wrap { width: 100%; }
+.slider-val { text-align: center; font-size: 44px; font-weight: 900; color: var(--blue); margin-bottom: 12px; font-family: var(--font-display); }
+.slider-wrap input[type=range] {
+  width: 100%; height: 8px; -webkit-appearance: none; appearance: none;
+  border-radius: 4px; outline: none; cursor: pointer;
+  background: linear-gradient(to right, var(--blue) var(--pct,44%), var(--border) var(--pct,44%));
+}
+.slider-wrap input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%;
+  background: #fff; border: 3px solid var(--blue); box-shadow: 0 3px 10px rgba(58,171,240,.5);
+}
+.slider-lbls { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray); margin-top: 7px; font-weight: 500; }
+
+.btn-submit {
+  width: 100%; padding: 18px; background: linear-gradient(135deg, var(--blue), var(--cyan));
+  color: #fff; border: none; border-radius: 18px; font-size: 16px; font-weight: 800;
+  cursor: pointer; margin-top: 14px; letter-spacing: 1px; font-family: var(--font);
+  transition: transform .12s, box-shadow .2s; box-shadow: 0 6px 20px rgba(58,171,240,.45);
+}
+.btn-submit:active { transform: scale(.97); box-shadow: none; }
+
+/* ── RESULTS VIEW ── */
+#results {
+  position: fixed; inset: 0; background: #fff; z-index: 200;
+  display: none; flex-direction: column; overflow-y: auto;
+  -webkit-overflow-scrolling: touch; padding: 28px 22px 48px;
+}
+#results.on { display: flex; animation: fadeUp .3s cubic-bezier(.25,.46,.45,.94); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; }
+.stat-card {
+  background: var(--panel); border-radius: 18px; padding: 18px;
+  text-align: center; border: 1.5px solid var(--border);
+}
+.stat-card .sv { font-size: 32px; font-weight: 900; color: var(--blue); font-family: var(--font-display); }
+.stat-card .sl { font-size: 11px; color: var(--gray); margin-top: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+
+.chart-sec { margin-bottom: 30px; }
+.chart-sec h3 { font-size: 17px; font-weight: 800; margin-bottom: 14px; letter-spacing: -.2px; }
+.chart-box { position: relative; height: 215px; }
+
+/* ── STREAK MODAL ── */
+#streak-modal {
+  position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(6px);
+  z-index: 300; display: none; align-items: center; justify-content: center; padding: 22px;
+}
+#streak-modal.on { display: flex; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+.streak-card {
+  background: #fff; border-radius: 26px; padding: 32px 26px; width: 100%;
+  max-width: 340px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.sc-icon { font-size: 60px; margin-bottom: 12px; display: block; }
+.sc-title { font-size: 24px; font-weight: 900; margin-bottom: 8px; letter-spacing: -.3px; }
+.sc-desc { font-size: 13px; color: var(--gray); margin-bottom: 16px; line-height: 1.6; font-weight: 500; }
+.sc-num { font-size: 76px; font-weight: 900; color: var(--orange); line-height: 1; margin-bottom: 10px; font-family: var(--font-display); }
+.strike-row { display: flex; gap: 10px; justify-content: center; margin: 10px 0; }
+.strike-dot { width: 16px; height: 16px; border-radius: 50%; background: var(--border); transition: background .3s; }
+.strike-dot.on { background: var(--orange); box-shadow: 0 2px 8px rgba(249,115,22,.4); }
+.revival-row { display: flex; gap: 16px; justify-content: center; margin: 16px 0; }
+.rev-dot {
+  width: 48px; height: 48px; border-radius: 50%; border: 3px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; color: var(--gray); transition: all .3s;
+}
+.rev-dot.done { border-color: var(--green); background: #F0FDF4; color: var(--green); }
+.rev-dot.cur { border-color: var(--blue); background: #EFF8FF; color: var(--blue); }
+.btn-sc {
+  width: 100%; padding: 16px; background: var(--blue); color: #fff; border: none;
+  border-radius: 16px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 12px;
+  font-family: var(--font); letter-spacing: .3px; transition: transform .12s;
+  box-shadow: 0 4px 14px rgba(58,171,240,.4);
+}
+.btn-sc:active { transform: scale(.97); }
+.btn-sc.orange { background: var(--orange); box-shadow: 0 4px 14px rgba(249,115,22,.4); }
+.btn-sc.gray { background: var(--gray); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 34px; left: 50%;
+  transform: translateX(-50%) translateY(130px);
+  background: rgba(15,23,42,.95); color: #fff; padding: 13px 28px;
+  border-radius: 28px; font-size: 14px; font-weight: 600; z-index: 500;
+  transition: transform .38s cubic-bezier(.25,.46,.45,.94);
+  white-space: nowrap; max-width: 92vw; text-align: center; font-family: var(--font);
+  box-shadow: 0 8px 30px rgba(0,0,0,.2);
+}
+#toast.on { transform: translateX(-50%) translateY(0); }
+
+/* ── CELEBRATION ── */
+@keyframes pop { 0%,100% { transform:scale(1); } 40% { transform:scale(1.1); } 70% { transform:scale(.97); } }
+.pop { animation: pop .45s cubic-bezier(.25,.46,.45,.94); }
+@keyframes confetti { 0% { opacity:1; transform:translateY(0) rotate(0) scale(1); } 100% { opacity:0; transform:translateY(-140px) rotate(720deg) scale(.5); } }
+.confetti-bit { position: fixed; pointer-events: none; z-index: 600; animation: confetti 1.5s ease forwards; }
+
+/* ── NUMBER PULSE ── */
+@keyframes numPulse { 0% { transform:scale(1); } 30% { transform:scale(1.15); } 60% { transform:scale(.97); } 100% { transform:scale(1); } }
+.num-pulse { animation: numPulse .5s cubic-bezier(.25,.46,.45,.94); }
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Settings overlay -->
+<div id="overlay" onclick="closeSettings()"></div>
+
+<!-- Settings panel -->
+<div id="settings">
+  <div class="set-lbl">settings + survey</div>
+  <div class="set-sec">
+    <h3>bottle size</h3>
+    <div class="set-row">
+      <input type="number" id="s-bottle" placeholder="amount" min="1" max="999">
+      <select id="s-bottle-u"><option value="oz">OZ</option><option value="ml">ML</option></select>
+    </div>
+  </div>
+  <div class="set-sec">
+    <h3>daily goal</h3>
+    <div class="set-row">
+      <input type="number" id="s-goal" placeholder="amount" min="1" max="999">
+      <select id="s-goal-u"><option value="oz">OZ</option><option value="ml">ML</option></select>
+    </div>
+    <button class="btn-save" onclick="saveSettings()">Save Settings</button>
+  </div>
+  <div class="avg-box">
+    <p>Your average water intake per day is</p>
+    <div class="avg-val" id="avg-val">
+      <span id="avg-num">--</span>
+      <span class="avg-unit">OZ</span>
+      <span class="trend" id="trend">▼</span>
+    </div>
+    <div class="avg-sub" id="avg-sub">log water to see your average</div>
+  </div>
+  <div class="health-box">
+    <p>from your survey data, we estimate your health is</p>
+    <div class="health-status stable" id="health-status">STABLE</div>
+  </div>
+  <button class="btn-survey" onclick="openSurvey()">TAKE DAILY SURVEY</button>
+  <button class="btn-results" onclick="openResults()">SEE LONG TERM RESULTS</button>
+</div>
+
+<!-- Main view -->
+<div id="main">
+  <div class="header">
+    <button class="menu-btn" id="menu-btn" onclick="toggleSettings()" aria-label="Open settings">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">8-<span>cups</span></div>
+    <div class="streak-badge" id="streak-badge" onclick="openStreakModal()">
+      <span class="drop-icon">💧</span><span id="streak-count">0</span>
+    </div>
+  </div>
+
+  <div class="you-drank">You've drank</div>
+
+  <div class="bottle-wrap">
+    <svg class="bottle-svg" viewBox="0 0 160 290" id="bottle-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="bc">
+          <path d="M58,0 L58,24 Q45,34 42,52 L34,262 Q34,278 80,278 Q126,278 126,262 L118,52 Q115,34 102,24 L102,0 Z"/>
+        </clipPath>
+        <linearGradient id="wg2" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#7DD3FC;stop-opacity:1"/>
+          <stop offset="100%" style="stop-color:#1565A8;stop-opacity:1"/>
+        </linearGradient>
+      </defs>
+      <!-- Bottle body background -->
+      <path d="M58,0 L58,24 Q45,34 42,52 L34,262 Q34,278 80,278 Q126,278 126,262 L118,52 Q115,34 102,24 L102,0 Z"
+            fill="white" stroke="#E2E8F0" stroke-width="2"/>
+      <!-- Water group (clipped to bottle) -->
+      <g clip-path="url(#bc)">
+        <rect id="wfill" x="34" y="278" width="92" height="0" fill="url(#wg2)"/>
+        <path id="wave" fill="rgba(125,211,252,0.5)"/>
+      </g>
+      <!-- Bottle outline on top -->
+      <path d="M58,0 L58,24 Q45,34 42,52 L34,262 Q34,278 80,278 Q126,278 126,262 L118,52 Q115,34 102,24 L102,0 Z"
+            fill="none" stroke="#CBD5E1" stroke-width="2"/>
+      <!-- Neck cap -->
+      <rect x="56" y="0" width="48" height="8" rx="4" fill="#CBD5E1"/>
+      <!-- Shine highlight -->
+      <path d="M50,70 Q48,100 50,140" stroke="rgba(255,255,255,0.6)" stroke-width="6" stroke-linecap="round" fill="none"/>
+    </svg>
+    <div class="bottle-nums">
+      <div class="oz-num" id="oz-num">0</div>
+      <div class="oz-unit">OZ</div>
+    </div>
+    <div class="bottle-remaining" id="bottle-remaining"></div>
+  </div>
+
+  <div class="prog-wrap">
+    <h2 id="goal-text">out of 64 oz today</h2>
+    <div class="motiv" id="motiv">Let's get started! Drink up! 💪</div>
+    <div class="bottle-hint">Drink <a id="hint-link" href="#" onclick="return false;">0 more bottles</a> to reach today's goal!</div>
+  </div>
+
+  <div class="pbar-wrap"><div class="pbar" id="pbar"></div></div>
+
+  <div class="refill-alert" id="refill-alert">🚰 Time to refill your bottle!</div>
+
+  <div class="quick-log-wrap">
+    <div class="quick-log-label">quick log</div>
+    <button class="btn-quick-log" id="btn-quick-log" onclick="quickLog(event)">
+      <div class="bql-left">
+        <div class="bql-icon">💧</div>
+        <div class="bql-text">
+          <div class="bql-title">Drank a bottle</div>
+          <div class="bql-sub">tap to log instantly</div>
+        </div>
+      </div>
+      <div class="bql-right">
+        <div class="bql-amt" id="bql-amt">32</div>
+        <div class="bql-unit" id="bql-unit">OZ</div>
+      </div>
+    </button>
+  </div>
+
+  <div class="log-divider"><span>or log custom amount</span></div>
+
+  <div class="log-form">
+    <div class="log-lbl">did you drink water?</div>
+    <div class="log-row1">
+      <input type="number" id="w-amt" placeholder="amount" min="0.1" step="0.5">
+      <select id="w-unit" onchange="onUnitChange()"><option value="oz">OZ ▼</option><option value="ml">ML ▼</option><option value="bottles">Bottles ▼</option></select>
+    </div>
+    <div class="log-row2">
+      <span class="at-lbl">at</span>
+      <select id="w-time"></select>
+      <button class="btn-add" onclick="addEntry()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="entries" id="entries"></div>
+</div>
+</div><!-- #app -->
+
+<!-- Survey Modal -->
+<div id="survey">
+  <div class="modal-hdr">
+    <h2>Daily Survey 📋</h2>
+    <button class="btn-x" onclick="closeSurvey()">✕</button>
+  </div>
+  <div class="q">
+    <label>1. How are you feeling overall today?</label>
+    <div class="emoji-row">
+      <button class="emo" onclick="pick('q1',1,this)">😞<span>Awful</span></button>
+      <button class="emo" onclick="pick('q1',2,this)">😕<span>Bad</span></button>
+      <button class="emo" onclick="pick('q1',3,this)">😐<span>Okay</span></button>
+      <button class="emo" onclick="pick('q1',4,this)">😊<span>Good</span></button>
+      <button class="emo" onclick="pick('q1',5,this)">😄<span>Great</span></button>
+    </div>
+  </div>
+  <div class="q">
+    <label>2. Do you feel like you've consistently been reaching your water goals?</label>
+    <div class="yn-row">
+      <button class="yn" onclick="pickYN('q2','yes',this)">Yes</button>
+      <button class="yn" onclick="pickYN('q2','sometimes',this)">Sometimes</button>
+      <button class="yn" onclick="pickYN('q2','no',this)">No</button>
+    </div>
+  </div>
+  <div class="q">
+    <label>3. How much energy do you have today?</label>
+    <div class="slider-wrap">
+      <div class="slider-val" id="e-val">5</div>
+      <input type="range" id="e-slider" min="1" max="10" value="5" oninput="moveSlider(this)" style="--pct:44%">
+      <div class="slider-lbls"><span>1 — None</span><span>10 — Max</span></div>
+    </div>
+  </div>
+  <div class="q">
+    <label>4. Are you having headaches, lack of energy, or other symptoms of dehydration?</label>
+    <div class="yn-row">
+      <button class="yn" onclick="pickYN('q4','yes',this)">Yes</button>
+      <button class="yn" onclick="pickYN('q4','mild',this)">Mild</button>
+      <button class="yn" onclick="pickYN('q4','no',this)">No</button>
+    </div>
+  </div>
+  <div class="q">
+    <label>5. Do you feel like your health is improving?</label>
+    <div class="yn-row">
+      <button class="yn" onclick="pickYN('q5','yes',this)">Yes</button>
+      <button class="yn" onclick="pickYN('q5','unsure',this)">Unsure</button>
+      <button class="yn" onclick="pickYN('q5','no',this)">No</button>
+    </div>
+  </div>
+  <button class="btn-submit" onclick="submitSurvey()">SUBMIT SURVEY ✓</button>
+</div>
+
+<!-- Results View -->
+<div id="results">
+  <div class="modal-hdr">
+    <h2>Long Term Results 📊</h2>
+    <button class="btn-x" onclick="closeResults()">✕</button>
+  </div>
+  <div class="stats-grid" id="stats-grid"></div>
+  <div class="chart-sec">
+    <h3>💧 Daily Water Intake</h3>
+    <div class="chart-box"><canvas id="c-water"></canvas></div>
+  </div>
+  <div class="chart-sec">
+    <h3>⚡ Energy Levels</h3>
+    <div class="chart-box"><canvas id="c-energy"></canvas></div>
+  </div>
+  <div class="chart-sec">
+    <h3>😊 Overall Feeling</h3>
+    <div class="chart-box"><canvas id="c-feel"></canvas></div>
+  </div>
+  <div class="chart-sec">
+    <h3>🏆 Daily Goal Completion</h3>
+    <div class="chart-box"><canvas id="c-streak"></canvas></div>
+  </div>
+</div>
+
+<!-- Streak Modal -->
+<div id="streak-modal">
+  <div class="streak-card" id="streak-card"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════
+//  STATE
+// ═══════════════════════════════
+const KEY = '8sip_v1';
+let S = {
+  settings: { bottleSize:32, bUnit:'oz', dailyGoal:64, gUnit:'oz' },
+  streak: { current:0, strikes:0, lastDate:null, revDays:0, savedStreak:0 },
+  logs: {}
+};
+
+let sa = { q1:null, q2:null, q3:5, q4:null, q5:null };
+let waveRaf = null;
+
+function load() {
+  try { const d = localStorage.getItem(KEY); if(d) S = JSON.parse(d); } catch(e){}
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
+}
+
+// ═══════════════════════════════
+//  DATE / TIME
+// ═══════════════════════════════
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+function yesterday() {
+  const d = new Date(); d.setDate(d.getDate()-1);
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+function p2(n) { return String(n).padStart(2,'0'); }
+function fmtDate(k) {
+  const [,m,d] = k.split('-');
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]+' '+parseInt(d);
+}
+function fmtTime(str) {
+  const [h,m] = str.split(':').map(Number);
+  const per = h<12?'AM':'PM', dh = h===0?12:h>12?h-12:h;
+  return `${dh}:${p2(m)} ${per}`;
+}
+
+// ═══════════════════════════════
+//  UNIT CONVERSION
+// ═══════════════════════════════
+function toOz(amt, unit) {
+  if (unit === 'ml') return amt / 29.5735;
+  if (unit === 'bottles') return amt * bottleOz();
+  return amt; // oz
+}
+
+// ═══════════════════════════════
+//  LOG HELPERS
+// ═══════════════════════════════
+function getLog(key) {
+  if (!S.logs[key]) S.logs[key] = { entries:[], survey:null };
+  return S.logs[key];
+}
+function todayIntakeOz() {
+  return getLog(today()).entries.reduce((s,e) => s + toOz(e.amt, e.unit), 0);
+}
+function goalOz() { return toOz(S.settings.dailyGoal, S.settings.gUnit); }
+function bottleOz() { return toOz(S.settings.bottleSize, S.settings.bUnit); }
+
+// ═══════════════════════════════
+//  ADD / DELETE ENTRY
+// ═══════════════════════════════
+function addEntry() {
+  const a = parseFloat(document.getElementById('w-amt').value);
+  if (!a || a<=0) { toast('Enter a valid amount 💧'); return; }
+  const unit = document.getElementById('w-unit').value;
+  const time = document.getElementById('w-time').value;
+  getLog(today()).entries.push({ amt:a, unit, time });
+  document.getElementById('w-amt').value = '';
+  processStreak();
+  save(); refresh();
+
+  // Pulse the number on add
+  const numEl = document.getElementById('oz-num');
+  numEl.classList.remove('num-pulse');
+  void numEl.offsetWidth;
+  numEl.classList.add('num-pulse');
+
+  const pct = todayIntakeOz() / goalOz();
+  if (pct >= 1) {
+    toast('🎉 Daily goal reached! Incredible!');
+    celebrate();
+    const svgEl = document.getElementById('bottle-svg');
+    svgEl.classList.add('pop', 'full');
+    setTimeout(() => svgEl.classList.remove('pop'), 500);
+  } else {
+    const unitLabel = unit === 'bottles' ? (a === 1 ? 'bottle' : 'bottles') : unit.toUpperCase();
+    toast(`+${a} ${unitLabel} logged! 💧`);
+  }
+}
+
+function quickLog(e) {
+  // Ripple effect
+  const btn = document.getElementById('btn-quick-log');
+  const rect = btn.getBoundingClientRect();
+  const rip = document.createElement('div');
+  rip.className = 'ripple-el';
+  rip.style.top = (e.clientY - rect.top) + 'px';
+  rip.style.left = (e.clientX - rect.left) + 'px';
+  btn.appendChild(rip);
+  setTimeout(() => rip.remove(), 700);
+
+  // Log one full bottle at current time
+  const bsz = S.settings.bottleSize;
+  const bunit = S.settings.bUnit;
+  const time = document.getElementById('w-time').value;
+  getLog(today()).entries.push({ amt: bsz, unit: bunit, time });
+  processStreak();
+  save(); refresh();
+
+  // Pulse the number
+  const numEl = document.getElementById('oz-num');
+  numEl.classList.remove('num-pulse');
+  void numEl.offsetWidth;
+  numEl.classList.add('num-pulse');
+
+  const pct = todayIntakeOz() / goalOz();
+  if (pct >= 1) {
+    toast('🎉 Daily goal reached! Incredible!');
+    celebrate();
+    const svgEl = document.getElementById('bottle-svg');
+    svgEl.classList.add('pop', 'full');
+    setTimeout(() => svgEl.classList.remove('pop'), 500);
+  } else {
+    toast(`💧 ${bsz} ${bunit.toUpperCase()} logged!`);
+  }
+}
+
+function delEntry(i) {
+  getLog(today()).entries.splice(i,1);
+  processStreak(); save(); refresh();
+}
+
+// ═══════════════════════════════
+//  STREAK LOGIC
+// ═══════════════════════════════
+function processStreak() {
+  const td = today(), yd = yesterday();
+  if (S.streak.lastDate === td) return;
+
+  if (S.streak.lastDate && S.streak.lastDate !== yd && S.streak.lastDate !== td) {
+    if (S.streak.current > 0) breakStreak();
+    else S.streak.revDays = 0;
+  }
+  if (S.streak.lastDate === yd) {
+    applyDay(yd);
+  }
+  S.streak.lastDate = td;
+}
+
+function applyDay(dateKey) {
+  const log = S.logs[dateKey];
+  const intake = log ? log.entries.reduce((s,e) => s+toOz(e.amt,e.unit), 0) : 0;
+  const g = goalOz();
+  const pct = g > 0 ? intake/g : 0;
+
+  if (S.streak.current > 0) {
+    if (pct >= 1.0) { S.streak.current++; S.streak.strikes = 0; }
+    else if (pct >= 0.85) { S.streak.strikes++; if (S.streak.strikes >= 3) breakStreak(); }
+    else { breakStreak(); }
+  } else {
+    if (pct >= 1.0) {
+      S.streak.revDays++;
+      if (S.streak.revDays >= 3) {
+        S.streak.current = S.streak.savedStreak > 0 ? S.streak.savedStreak + 3 : 3;
+        S.streak.savedStreak = 0;
+        S.streak.revDays = 0;
+        S.streak.strikes = 0;
+      }
+    } else {
+      S.streak.revDays = 0;
+    }
+  }
+}
+
+function breakStreak() {
+  S.streak.savedStreak = Math.max(S.streak.current, S.streak.savedStreak);
+  S.streak.current = 0;
+  S.streak.strikes = 0;
+  S.streak.revDays = 0;
+}
+
+// ═══════════════════════════════
+//  MOTIVATIONAL
+// ═══════════════════════════════
+const MSGS = [
+  [0,    "Let's get started! Drink up! 💪"],
+  [0.15, "Great start! Keep the momentum! 🌊"],
+  [0.35, "Good job… but pick up the pace! ⚡"],
+  [0.55, "More than halfway there! You've got this! 🚀"],
+  [0.8,  "Almost there! Final stretch! 🏃"],
+  [0.95, "So close! Just a sip away! 🎯"],
+  [1.0,  "Goal crushed! You're amazing! 🎉"]
+];
+function getMsg(pct) {
+  for (let i = MSGS.length-1; i >= 0; i--) {
+    if (pct >= MSGS[i][0]) return MSGS[i][1];
+  }
+  return MSGS[0][1];
+}
+
+// ═══════════════════════════════
+//  BOTTLE STATUS
+// ═══════════════════════════════
+function bottleStatus() {
+  const total = todayIntakeOz(), bsz = bottleOz();
+  if (bsz <= 0) return { remaining: 0, refill: false };
+  const used = total % bsz;
+  const remaining = bsz - used;
+  return { remaining: Math.max(0, remaining), refill: used > bsz * 0.88 };
+}
+
+// ═══════════════════════════════
+//  AVERAGES & HEALTH
+// ═══════════════════════════════
+function avgIntake() {
+  const keys = Object.keys(S.logs).sort().slice(-14);
+  if (!keys.length) return null;
+  const vals = keys.map(k => S.logs[k].entries.reduce((s,e) => s+toOz(e.amt,e.unit), 0));
+  return vals.reduce((a,b) => a+b, 0) / vals.length;
+}
+
+function intakeTrend() {
+  const keys = Object.keys(S.logs).sort();
+  if (keys.length < 4) return 'neutral';
+  const rec = keys.slice(-3).map(k => S.logs[k].entries.reduce((s,e)=>s+toOz(e.amt,e.unit),0));
+  const old = keys.slice(-6,-3).map(k => S.logs[k].entries.reduce((s,e)=>s+toOz(e.amt,e.unit),0));
+  if (!old.length) return 'neutral';
+  const ra = rec.reduce((a,b)=>a+b,0)/rec.length;
+  const oa = old.reduce((a,b)=>a+b,0)/old.length;
+  return ra > oa*1.05 ? 'up' : ra < oa*0.95 ? 'down' : 'neutral';
+}
+
+function healthEstimate() {
+  const keys = Object.keys(S.logs).sort().slice(-14);
+  if (keys.length < 2) return 'stable';
+  let score = 0, cnt = 0;
+  const g = goalOz();
+  keys.forEach(k => {
+    const log = S.logs[k];
+    const intake = log.entries.reduce((s,e) => s+toOz(e.amt,e.unit), 0);
+    score += (intake/g - 0.7) * 2; cnt++;
+    if (log.survey) {
+      const sv = log.survey;
+      if (sv.q1) score += (sv.q1-3)*0.6;
+      if (sv.q3) score += (sv.q3-5)*0.3;
+      if (sv.q4==='yes') score -= 1.5;
+      else if (sv.q4==='mild') score -= 0.5;
+      else if (sv.q4==='no') score += 1;
+      if (sv.q5==='yes') score += 1.5;
+      else if (sv.q5==='no') score -= 1.5;
+      cnt++;
+    }
+  });
+  const avg = score/cnt;
+  return avg > 0.4 ? 'improving' : avg < -0.4 ? 'declining' : 'stable';
+}
+
+// ═══════════════════════════════
+//  REFRESH UI
+// ═══════════════════════════════
+function refresh() {
+  const intake = todayIntakeOz();
+  const g = goalOz();
+  const bsz = bottleOz();
+  const pct = g > 0 ? Math.min(intake/g, 1) : 0;
+
+  document.getElementById('oz-num').textContent = Math.round(intake*10)/10;
+  document.getElementById('goal-text').textContent = `out of ${S.settings.dailyGoal} ${S.settings.gUnit.toUpperCase()} today`;
+  document.getElementById('motiv').textContent = getMsg(pct);
+  document.getElementById('pbar').style.width = (pct*100)+'%';
+  document.getElementById('streak-count').textContent = S.streak.current;
+
+  // Quick-log button label
+  document.getElementById('bql-amt').textContent = S.settings.bottleSize;
+  document.getElementById('bql-unit').textContent = S.settings.bUnit.toUpperCase();
+
+  // Streak badge icon
+  const sb = document.querySelector('.streak-badge .drop-icon');
+  sb.textContent = S.streak.current >= 7 ? '🔥' : '💧';
+
+  // Bottles hint
+  const rem = g - intake;
+  const hLink = document.getElementById('hint-link');
+  if (intake >= g) {
+    hLink.textContent = 'your goal — great job!';
+  } else if (bsz > 0) {
+    const n = Math.ceil((rem/bsz)*10)/10;
+    hLink.textContent = n <= 1 ? '1 more bottle of water' : `${n} more bottles of water`;
+  } else {
+    hLink.textContent = `${Math.round(rem*10)/10} more oz`;
+  }
+
+  // Bottle remaining display
+  const bs = bottleStatus();
+  const remEl = document.getElementById('bottle-remaining');
+  remEl.textContent = (bsz > 0 && intake > 0)
+    ? `~${Math.round(bs.remaining*10)/10} oz left in bottle` : '';
+
+  // Refill alert
+  document.getElementById('refill-alert').classList.toggle('on', bs.refill && intake > 0);
+
+  // Bottle glow
+  const svgEl = document.getElementById('bottle-svg');
+  svgEl.classList.toggle('full', pct >= 1);
+
+  // Bottle animation
+  animBottle(pct, intake);
+
+  // Entries + Settings
+  renderEntries();
+  refreshSettings();
+}
+
+function refreshSettings() {
+  const avg = avgIntake();
+  if (avg !== null) {
+    document.getElementById('avg-num').textContent = Math.round(avg);
+    const isGood = avg >= goalOz();
+    document.getElementById('avg-val').className = 'avg-val' + (isGood?' good':'');
+    const tr = intakeTrend();
+    const tel = document.getElementById('trend');
+    tel.textContent = tr==='up'?'▲':tr==='down'?'▼':'—';
+    tel.style.color = tr==='up'?'var(--green)':tr==='down'?'var(--red)':'var(--orange)';
+    document.getElementById('avg-sub').textContent = isGood
+      ? 'great job hitting your goals!'
+      : 'drink more water to improve your health!';
+  }
+  const h = healthEstimate();
+  const hel = document.getElementById('health-status');
+  hel.textContent = h.toUpperCase();
+  hel.className = `health-status ${h}`;
+}
+
+// ═══════════════════════════════
+//  BOTTLE WAVE ANIMATION
+// ═══════════════════════════════
+function animBottle(pct, intake) {
+  const TOP = 52, BOT = 262, H = BOT - TOP;
+  const waterH = pct * H;
+  const waterY = BOT - waterH;
+
+  const rect = document.getElementById('wfill');
+  rect.setAttribute('y', waterY);
+  rect.setAttribute('height', waterH + 20);
+
+  if (waveRaf) { cancelAnimationFrame(waveRaf); waveRaf = null; }
+  if (intake <= 0) { document.getElementById('wave').setAttribute('d', ''); return; }
+
+  function step(ts) {
+    const rad = (ts / 1100) * Math.PI * 2;
+    const amp = pct >= 1 ? 1.5 : 4.5;
+    const y0 = waterY;
+    const pts = [];
+    for (let x = 34; x <= 126; x += 3) {
+      const phase = (x - 34) / 92 * Math.PI * 2;
+      pts.push([x, y0 + Math.sin(rad + phase) * amp]);
+    }
+    let d = `M34,${y0+amp} `;
+    pts.forEach(([x,y]) => { d += `L${x},${y} `; });
+    d += `L126,${BOT} L34,${BOT} Z`;
+    document.getElementById('wave').setAttribute('d', d);
+    waveRaf = requestAnimationFrame(step);
+  }
+  waveRaf = requestAnimationFrame(step);
+}
+
+// ═══════════════════════════════
+//  RENDER ENTRIES
+// ═══════════════════════════════
+function renderEntries() {
+  const el = document.getElementById('entries');
+  const log = getLog(today());
+  if (!log.entries.length) { el.innerHTML = ''; return; }
+  el.innerHTML = [...log.entries].reverse().map((e,ri) => {
+    const i = log.entries.length-1-ri;
+    const unitLabel = e.unit === 'bottles'
+      ? (e.amt === 1 ? 'bottle' : 'bottles')
+      : e.unit.toUpperCase();
+    return `<div class="entry">
+      <div>
+        <div class="entry-info">💧 ${e.amt} ${unitLabel}</div>
+        <div class="entry-time">at ${fmtTime(e.time)}</div>
+      </div>
+      <button class="entry-del" onclick="delEntry(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════
+//  TIME SELECT
+// ═══════════════════════════════
+function buildTimeSelect() {
+  const sel = document.getElementById('w-time');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for (let h=0; h<24; h++) {
+    for (let m=0; m<60; m+=15) {
+      const v = `${p2(h)}:${p2(m)}`;
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = fmtTime(v);
+      sel.appendChild(opt);
+    }
+  }
+  if (prev && sel.querySelector(`option[value="${prev}"]`)) {
+    sel.value = prev;
+  } else {
+    const n = new Date();
+    const rm = Math.round(n.getMinutes()/15)*15;
+    const rh = rm===60 ? (n.getHours()+1)%24 : n.getHours();
+    const rcm = rm===60 ? 0 : rm;
+    sel.value = `${p2(rh)}:${p2(rcm)}`;
+  }
+}
+
+// ═══════════════════════════════
+//  UNIT CHANGE HANDLER
+// ═══════════════════════════════
+function onUnitChange() {
+  const unit = document.getElementById('w-unit').value;
+  const inp = document.getElementById('w-amt');
+  if (unit === 'bottles') {
+    inp.placeholder = '# bottles';
+    inp.step = '0.5';
+    inp.min = '0.5';
+  } else if (unit === 'ml') {
+    inp.placeholder = 'amount';
+    inp.step = '50';
+    inp.min = '1';
+  } else {
+    inp.placeholder = 'amount';
+    inp.step = '0.5';
+    inp.min = '0.1';
+  }
+}
+
+
+function toggleSettings() {
+  document.getElementById('settings').classList.contains('on') ? closeSettings() : openSettings();
+}
+function openSettings() {
+  document.getElementById('settings').classList.add('on');
+  document.getElementById('overlay').classList.add('on');
+  document.getElementById('menu-btn').classList.add('open');
+  document.getElementById('s-bottle').value = S.settings.bottleSize;
+  document.getElementById('s-bottle-u').value = S.settings.bUnit;
+  document.getElementById('s-goal').value = S.settings.dailyGoal;
+  document.getElementById('s-goal-u').value = S.settings.gUnit;
+  refreshSettings();
+}
+function closeSettings() {
+  document.getElementById('settings').classList.remove('on');
+  document.getElementById('overlay').classList.remove('on');
+  document.getElementById('menu-btn').classList.remove('open');
+}
+function saveSettings() {
+  const bs = parseFloat(document.getElementById('s-bottle').value);
+  const bu = document.getElementById('s-bottle-u').value;
+  const g = parseFloat(document.getElementById('s-goal').value);
+  const gu = document.getElementById('s-goal-u').value;
+  if (bs > 0) { S.settings.bottleSize = bs; S.settings.bUnit = bu; }
+  if (g > 0) { S.settings.dailyGoal = g; S.settings.gUnit = gu; }
+  save(); refresh(); closeSettings();
+  toast('Settings saved ✓');
+}
+
+// ═══════════════════════════════
+//  SURVEY
+// ═══════════════════════════════
+function openSurvey() {
+  sa = { q1:null, q2:null, q3:5, q4:null, q5:null };
+  document.querySelectorAll('.emo,.yn').forEach(el => el.classList.remove('sel'));
+  const sl = document.getElementById('e-slider');
+  sl.value = 5; document.getElementById('e-val').textContent = '5';
+  sl.style.setProperty('--pct','44%');
+  const sv = getLog(today()).survey;
+  if (sv) {
+    sa = {...sa,...sv};
+    if (sv.q1) document.querySelectorAll('.emo')[sv.q1-1]?.classList.add('sel');
+    if (sv.q3) { sl.value=sv.q3; document.getElementById('e-val').textContent=sv.q3; moveSlider(sl); }
+  }
+  closeSettings();
+  document.getElementById('survey').classList.add('on');
+}
+function closeSurvey() { document.getElementById('survey').classList.remove('on'); }
+
+function pick(q, val, el) {
+  sa[q] = val;
+  el.closest('.emoji-row').querySelectorAll('.emo').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function pickYN(q, val, el) {
+  sa[q] = val;
+  el.closest('.yn-row').querySelectorAll('.yn').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function moveSlider(inp) {
+  const v = parseInt(inp.value);
+  sa.q3 = v;
+  document.getElementById('e-val').textContent = v;
+  inp.style.setProperty('--pct', ((v-1)/9*100).toFixed(0)+'%');
+}
+function submitSurvey() {
+  if (!sa.q1||!sa.q2||!sa.q4||!sa.q5) { toast('Please answer all questions ☝️'); return; }
+  getLog(today()).survey = {...sa};
+  save(); closeSurvey();
+  toast('Survey submitted! Thanks 🎯');
+  refreshSettings();
+}
+
+// ═══════════════════════════════
+//  RESULTS / CHARTS
+// ═══════════════════════════════
+let charts = {};
+function openResults() {
+  closeSettings();
+  document.getElementById('results').classList.add('on');
+  setTimeout(renderCharts, 60);
+}
+function closeResults() { document.getElementById('results').classList.remove('on'); }
+
+function renderCharts() {
+  const keys = Object.keys(S.logs).sort().slice(-30);
+  if (!keys.length) { toast('Log some water to see results!'); closeResults(); return; }
+
+  const g = goalOz();
+  const intakes = keys.map(k => S.logs[k].entries.reduce((s,e)=>s+toOz(e.amt,e.unit),0));
+  const avg = intakes.reduce((a,b)=>a+b,0)/intakes.length;
+  const met = intakes.filter(v=>v>=g).length;
+  const surveys = keys.filter(k=>S.logs[k].survey);
+  const avgE = surveys.length ? surveys.reduce((s,k)=>s+(S.logs[k].survey.q3||5),0)/surveys.length : 0;
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="sv">${Math.round(avg)}</div><div class="sl">Avg oz / day</div></div>
+    <div class="stat-card"><div class="sv">${met}/${keys.length}</div><div class="sl">Days goal met</div></div>
+    <div class="stat-card"><div class="sv">${S.streak.current}</div><div class="sl">Current streak</div></div>
+    <div class="stat-card"><div class="sv">${avgE>0?avgE.toFixed(1):'--'}</div><div class="sl">Avg energy</div></div>
+  `;
+
+  Object.values(charts).forEach(c=>{ try{c.destroy();}catch(e){} }); charts={};
+  const labels = keys.map(fmtDate);
+  const base = {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false} },
+    scales:{
+      x:{ ticks:{maxTicksLimit:7,font:{size:10,family:'Space Grotesk'}}, grid:{display:false} },
+      y:{ ticks:{font:{size:10,family:'Space Grotesk'}}, grid:{color:'#F1F5F9'} }
+    }
+  };
+
+  charts.w = new Chart(document.getElementById('c-water').getContext('2d'),{
+    type:'line',
+    data:{ labels, datasets:[
+      { data:intakes.map(v=>Math.round(v*10)/10), borderColor:'#3AABF0',
+        backgroundColor:'rgba(58,171,240,.1)', fill:true, tension:.4,
+        pointBackgroundColor:'#3AABF0', pointRadius:3 },
+      { data:keys.map(()=>g), borderColor:'#F97316', borderDash:[5,5],
+        borderWidth:1.5, pointRadius:0 }
+    ]},
+    options:{...base}
+  });
+
+  const eData = keys.map(k=>S.logs[k].survey?.q3??null);
+  charts.e = new Chart(document.getElementById('c-energy').getContext('2d'),{
+    type:'bar',
+    data:{ labels, datasets:[{
+      data:eData,
+      backgroundColor:eData.map(v=>v==null?'#E2E8F0':`hsla(${v*18},75%,55%,.75)`),
+      borderRadius:6
+    }]},
+    options:{...base, scales:{...base.scales, y:{...base.scales.y,min:0,max:10}}}
+  });
+
+  const fData = keys.map(k=>S.logs[k].survey?.q1??null);
+  charts.f = new Chart(document.getElementById('c-feel').getContext('2d'),{
+    type:'line',
+    data:{ labels, datasets:[{
+      data:fData, borderColor:'#A855F7',
+      backgroundColor:'rgba(168,85,247,.1)', fill:true, tension:.4,
+      pointBackgroundColor:'#A855F7', pointRadius:3
+    }]},
+    options:{...base, scales:{...base.scales,
+      y:{...base.scales.y,min:1,max:5,ticks:{stepSize:1,callback:v=>['😞','😕','😐','😊','😄'][v-1]??v}}
+    }}
+  });
+
+  const compData = intakes.map(v=>Math.min(100,Math.round(v/g*100)));
+  charts.s = new Chart(document.getElementById('c-streak').getContext('2d'),{
+    type:'bar',
+    data:{ labels, datasets:[{
+      data:compData,
+      backgroundColor:compData.map(v=>v>=100?'rgba(34,197,94,.75)':v>=85?'rgba(249,115,22,.75)':'rgba(239,68,68,.5)'),
+      borderRadius:6
+    }]},
+    options:{...base, scales:{...base.scales,
+      y:{...base.scales.y,min:0,max:100,ticks:{callback:v=>v+'%'}}
+    }}
+  });
+}
+
+// ═══════════════════════════════
+//  STREAK MODAL
+// ═══════════════════════════════
+function openStreakModal() {
+  const { current, strikes, revDays, savedStreak } = S.streak;
+  let html = '';
+  if (current > 0) {
+    const dots = [0,1,2].map(i=>`<div class="strike-dot${i<strikes?' on':''}"></div>`).join('');
+    html = `
+      <div class="sc-icon">${current>=30?'🔥🔥':current>=7?'🔥':'💧'}</div>
+      <div class="sc-title">${current}-Day Streak!</div>
+      <div class="sc-desc">${current>=7?"You're on fire! Keep it burning!":'Great start — keep building that streak!'}</div>
+      <div class="sc-num">${current}</div>
+      ${strikes>0
+        ?`<div style="color:var(--orange);font-size:13px;font-weight:700;margin-bottom:6px;">⚠️ ${strikes}/3 strikes</div><div class="strike-row">${dots}</div>`
+        :`<div style="color:var(--green);font-size:13px;font-weight:600;margin-bottom:8px;">No strikes — you're clean! ✓</div>`}
+      <button class="btn-sc" onclick="closeStreakModal()">Keep Going! 💪</button>`;
+  } else if (revDays > 0) {
+    const rdots = [0,1,2].map(i=>`<div class="rev-dot${i<revDays?' done':i===revDays?' cur':''}">${i<revDays?'✓':i+1}</div>`).join('');
+    html = `
+      <div class="sc-icon">⚡</div>
+      <div class="sc-title">Revival Mode!</div>
+      <div class="sc-desc">Complete 3 consecutive days at 100% to restore your ${savedStreak?savedStreak+'-day streak':'streak'}!</div>
+      <div class="revival-row">${rdots}</div>
+      <div style="font-size:12px;color:var(--gray);margin-bottom:8px;">${3-revDays} day(s) remaining</div>
+      <button class="btn-sc orange" onclick="closeStreakModal()">I'm on it! 🔥</button>`;
+  } else {
+    html = `
+      <div class="sc-icon">💔</div>
+      <div class="sc-title">No Active Streak</div>
+      <div class="sc-desc">${savedStreak?`Hit 100% of your goal for 3 days in a row to revive your ${savedStreak}-day streak!`:'Hit your goal 3 days in a row to start a streak!'}</div>
+      ${savedStreak?`<div style="color:var(--orange);font-size:20px;font-weight:800;margin:10px 0;">Saved: ${savedStreak} days 🏆</div>`:''}
+      <button class="btn-sc orange" onclick="closeStreakModal()">Let's Go! ⚡</button>`;
+  }
+  document.getElementById('streak-card').innerHTML = html;
+  document.getElementById('streak-modal').classList.add('on');
+}
+function closeStreakModal() { document.getElementById('streak-modal').classList.remove('on'); }
+document.getElementById('streak-modal').addEventListener('click', function(e){
+  if(e.target===this) closeStreakModal();
+});
+
+// ═══════════════════════════════
+//  TOAST
+// ═══════════════════════════════
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
+}
+
+// ═══════════════════════════════
+//  CELEBRATION
+// ═══════════════════════════════
+function celebrate() {
+  const emojis = ['🎉','💧','🔥','⭐','🏆','💪','✨','🌊'];
+  for (let i=0; i<10; i++) {
+    const bit = document.createElement('div');
+    bit.className = 'confetti-bit';
+    bit.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    bit.style.left = (10+Math.random()*80)+'vw';
+    bit.style.top = (20+Math.random()*50)+'vh';
+    bit.style.animationDelay = (Math.random()*0.6)+'s';
+    bit.style.fontSize = (18+Math.random()*16)+'px';
+    document.body.appendChild(bit);
+    setTimeout(()=>bit.remove(), 2200);
+  }
+}
+
+// ═══════════════════════════════
+//  INIT
+// ═══════════════════════════════
+function init() {
+  load();
+  processStreak();
+  save();
+  buildTimeSelect();
+  refresh();
+
+  let lastDay = today();
+  setInterval(() => {
+    buildTimeSelect();
+    const td = today();
+    if (td !== lastDay) {
+      lastDay = td;
+      processStreak();
+      save();
+      refresh();
+    }
+  }, 60000);
+}
+
+init();
+</script>
+
+<script>
+// ── SERVICE WORKER (PWA install support) ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = '8cups-v1';
+    self.addEventListener('install', e => {
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(clients.claim());
+    });
+    self.addEventListener('fetch', e => {
+      // Network-first: let the page load normally, SW just enables installability
+      e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
+}
+</script>
+</body>
+</html>
